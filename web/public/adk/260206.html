@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>🤖 CTG AIHub Agent SDK Playground</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="styles.css">
+    <script src="./js/i18n.js"></script>
+</head>
+<body>
+    <!-- ========== 顶部导航 ========== -->
+    <header class="header">
+        <div class="header-left">
+            <div class="logo">
+                <span>🤖</span>
+                <span data-i18n="header.logo">CTG AIHub Agent SDK Playground</span>
+            </div>
+            <div class="model-selector">
+                <select id="modelSelect">
+                    <optgroup data-i18n-label="header.model.openai" label="OpenAI">
+                        <option value="gpt-4o" data-i18n="header.model.gpt4o">GPT-4o</option>
+                        <option value="gpt-4o-mini" selected data-i18n="header.model.gpt4o-mini">GPT-4o-mini</option>
+                        <option value="gpt-3.5-turbo" data-i18n="header.model.gpt35">GPT-3.5-turbo</option>
+                    </optgroup>
+                    <optgroup data-i18n-label="header.model.anthropic" label="Anthropic">
+                        <option value="claude-3-5-sonnet" data-i18n="header.model.claude-sonnet">Claude 3.5 Sonnet</option>
+                        <option value="claude-3-haiku" data-i18n="header.model.claude-haiku">Claude 3 Haiku</option>
+                    </optgroup>
+                    <optgroup data-i18n-label="header.model.domestic" label="国产模型">
+                        <option value="qwen-plus" data-i18n="header.model.qwen">通义千问 Plus</option>
+                        <option value="glm-4" data-i18n="header.model.glm">智谱 GLM-4</option>
+                        <option value="deepseek-chat" data-i18n="header.model.deepseek">DeepSeek Chat</option>
+                    </optgroup>
+                </select>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="status-indicator">
+                <div id="statusDot" class="status-dot"></div>
+                <span id="statusText" data-i18n="header.status.init">初始化中...</span>
+            </div>
+            <button class="btn btn-secondary" onclick="showApiConfig()" data-i18n="header.apiConfig">🔑 API 设置</button>
+            <button id="runBtn" class="btn btn-primary" onclick="runCode()" disabled>
+                <span data-i18n="header.run">▶ 运行</span>
+            </button>
+        </div>
+    </header>
+    
+    <!-- ========== 主体内容 ========== -->
+    <main class="main-container">
+        <!-- 左侧边栏 - 模板 -->
+        <aside class="sidebar">
+            <div class="sidebar-header" data-i18n="sidebar.templates">📚 代码模板</div>
+            <div class="template-list" id="templateList">
+                <!-- 动态生成 -->
+            </div>
+        </aside>
+        
+        <!-- 中间 - 编辑器 -->
+        <section class="editor-panel">
+            <div class="editor-toolbar">
+                <div class="editor-tabs">
+                    <button class="editor-tab active">main.py</button>
+                </div>
+                <div style="font-size: 12px; color: var(--text-secondary);">
+                    <span id="cursorPos" data-i18n="editor.cursorPos" data-i18n-line="1" data-i18n-col="1">行 1, 列 1</span>
+                </div>
+            </div>
+            <div id="editor-container"></div>
+        </section>
+        
+        <!-- 右侧 - 输出和配置 -->
+        <aside class="output-panel">
+            <div class="output-tabs">
+                <button class="output-tab active" onclick="switchTab('output')" data-tab="output" data-i18n="tab.output">📤 输出</button>
+                <button class="output-tab" onclick="switchTab('config')" data-tab="config" data-i18n="tab.config">⚙️ 配置</button>
+                <button class="output-tab" onclick="switchTab('stats')" data-tab="stats" data-i18n="tab.stats">📊 统计</button>
+            </div>
+            
+            <div class="output-content">
+                <!-- 输出 Tab -->
+                <div id="tab-output" class="tab-pane active">
+                    <div id="output" data-i18n="output.waiting">等待运行代码...</div>
+                    <div class="shortcuts">
+                        <div class="shortcut-item"><span data-i18n="shortcut.run">运行代码</span><kbd>Ctrl</kbd> + <kbd>Enter</kbd></div>
+                        <div class="shortcut-item"><span data-i18n="shortcut.stop">停止运行</span><kbd>Ctrl</kbd> + <kbd>C</kbd></div>
+                        <div class="shortcut-item"><span data-i18n="shortcut.clear">清空输出</span><kbd>Ctrl</kbd> + <kbd>L</kbd></div>
+                    </div>
+                </div>
+                
+                <!-- 配置 Tab -->
+                <div id="tab-config" class="tab-pane">
+                    <div class="config-panel">
+                        <div class="config-group">
+                            <div class="config-label">
+                                <span data-i18n="config.openaiKey">OpenAI API Key</span>
+                                <span style="color: var(--accent-green);" id="openaiStatus" data-i18n="config.status.notConfigured">未配置</span>
+                            </div>
+                            <input type="password" class="config-input config-input-password" 
+                                   id="openaiKey" data-i18n-placeholder="config.openaiKey" placeholder="sk-..." onchange="saveApiKey('openai')">
+                        </div>
+                        
+                        <div class="config-group">
+                            <div class="config-label">
+                                <span data-i18n="config.anthropicKey">Anthropic API Key</span>
+                                <span id="anthropicStatus" data-i18n="config.status.notConfigured">未配置</span>
+                            </div>
+                            <input type="password" class="config-input config-input-password" 
+                                   id="anthropicKey" data-i18n-placeholder="config.anthropicKey" placeholder="sk-ant-..." onchange="saveApiKey('anthropic')">
+                        </div>
+                        
+                        <div class="config-group">
+                            <div class="config-label">
+                                <span data-i18n="config.domesticKey">国产模型 API Key</span>
+                                <span id="domesticStatus" data-i18n="config.status.notConfigured">未配置</span>
+                            </div>
+                            <input type="password" class="config-input config-input-password" 
+                                   id="domesticKey" data-i18n-placeholder="config.domesticKey" placeholder="API Key" onchange="saveApiKey('domestic')">
+                        </div>
+                        
+                        <hr style="border-color: var(--border-color); margin: 20px 0;">
+                        
+                        <div class="config-group">
+                            <div class="config-label">
+                                <span data-i18n="config.temperature">Temperature</span>
+                                <span class="slider-value" id="tempValue">0.7</span>
+                            </div>
+                            <input type="range" class="config-input" id="temperature" 
+                                   min="0" max="2" step="0.1" value="0.7" 
+                                   oninput="document.getElementById('tempValue').textContent = this.value">
+                        </div>
+                        
+                        <div class="config-row">
+                            <div class="config-group">
+                                <div class="config-label" data-i18n="config.maxTokens">Max Tokens</div>
+                                <input type="number" class="config-input" id="maxTokens" value="1024" min="1" max="4096">
+                            </div>
+                            <div class="config-group">
+                                <div class="config-label" data-i18n="config.topP">Top P</div>
+                                <input type="number" class="config-input" id="topP" value="1" min="0" max="1" step="0.1">
+                            </div>
+                        </div>
+                        
+                        <div class="config-group" style="margin-top: 20px;">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="checkbox" id="streamMode" checked>
+                                <span style="font-size: 13px;" data-i18n="config.streamMode">启用流式输出 (Streaming)</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 统计 Tab -->
+                <div id="tab-stats" class="tab-pane">
+                    <div class="stats-panel">
+                        <div class="stats-card">
+                            <div class="stats-title" data-i18n="stats.tokens.title">本次对话 Token</div>
+                            <div class="stats-value" id="totalTokens">0</div>
+                            <div class="stats-sub">
+                                <span data-i18n="stats.tokens.input">输入</span>: <span id="inputTokens">0</span> | 
+                                <span data-i18n="stats.tokens.output">输出</span>: <span id="outputTokens">0</span>
+                            </div>
+                        </div>
+                        
+                        <div class="stats-grid">
+                            <div class="stats-card">
+                                <div class="stats-title" data-i18n="stats.cost.title">预估费用</div>
+                                <div class="stats-value">$<span id="estimatedCost">0.000</span></div>
+                            </div>
+                            <div class="stats-card">
+                                <div class="stats-title" data-i18n="stats.time.title">响应时间</div>
+                                <div class="stats-value"><span id="responseTime">0</span>ms</div>
+                            </div>
+                        </div>
+                        
+                        <div class="stats-card" style="margin-top: 12px;">
+                            <div class="stats-title" data-i18n="stats.session.title">累计使用</div>
+                            <div class="stats-value"><span id="sessionTokens">0</span></div>
+                            <div class="stats-sub" data-i18n="stats.session.subtitle">本次会话累计 Token</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <!-- ========== Scripts ========== -->
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
+    
+    <script type="module" src="./js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+.idea
+
+logs
+
+one-api.db
+
+.claude
+
+.trae
+
+package-lock.json
+new-api.exe
+new-api-darwin-amd64
+**/__pycache__

@@ -1,0 +1,1528 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>🤖 LLM Agent SDK Playground</title>
+    <meta charset="UTF-8">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #21262d;
+            --border-color: #30363d;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --accent-blue: #58a6ff;
+            --accent-green: #3fb950;
+            --accent-orange: #d29922;
+            --accent-red: #f85149;
+            --accent-purple: #a371f7;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* ========== 顶部导航 ========== */
+        .header {
+            background: var(--bg-secondary);
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .logo {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .model-selector {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .model-selector select {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-orange);
+        }
+        
+        .status-dot.ready { background: var(--accent-green); }
+        .status-dot.running { background: var(--accent-blue); animation: pulse 1s infinite; }
+        .status-dot.error { background: var(--accent-red); }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: var(--accent-green);
+            color: #000;
+        }
+        
+        .btn-primary:hover { filter: brightness(1.1); }
+        .btn-primary:disabled { background: var(--bg-tertiary); color: var(--text-secondary); cursor: not-allowed; }
+        
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+        
+        .btn-secondary:hover { background: var(--border-color); }
+        
+        /* ========== 主体布局 ========== */
+        .main-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+        
+        /* 左侧边栏 - 模板选择 */
+        .sidebar {
+            width: 220px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .sidebar-header {
+            padding: 12px 16px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .template-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+        
+        .template-item {
+            padding: 10px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border-color);
+            transition: background 0.2s;
+        }
+        
+        .template-item:hover { background: var(--bg-tertiary); }
+        .template-item.active { background: var(--bg-tertiary); border-left: 2px solid var(--accent-blue); }
+        
+        .template-item .title {
+            font-size: 13px;
+            margin-bottom: 4px;
+        }
+        
+        .template-item .desc {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+        
+        .template-item .tag {
+            display: inline-block;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            margin-top: 4px;
+        }
+        
+        .tag-openai { background: #10a37f20; color: #10a37f; }
+        .tag-claude { background: #d4a27420; color: #d4a274; }
+        .tag-qwen { background: #615fff20; color: #615fff; }
+        .tag-agent { background: #a371f720; color: #a371f7; }
+        
+        /* 中间 - 编辑器 */
+        .editor-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 400px;
+        }
+        
+        .editor-toolbar {
+            background: var(--bg-secondary);
+            padding: 8px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .editor-tabs {
+            display: flex;
+            gap: 4px;
+        }
+        
+        .editor-tab {
+            padding: 6px 12px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        
+        .editor-tab.active {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+        
+        #editor-container {
+            flex: 1;
+        }
+        
+        /* 右侧 - 输出和配置 */
+        .output-panel {
+            width: 420px;
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid var(--border-color);
+        }
+        
+        .output-tabs {
+            display: flex;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .output-tab {
+            flex: 1;
+            padding: 10px;
+            font-size: 12px;
+            text-align: center;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            border-bottom: 2px solid transparent;
+        }
+        
+        .output-tab.active {
+            color: var(--text-primary);
+            border-bottom-color: var(--accent-blue);
+        }
+        
+        .output-content {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .tab-pane {
+            display: none;
+            flex: 1;
+            overflow-y: auto;
+        }
+        
+        .tab-pane.active { display: flex; flex-direction: column; }
+        
+        /* 输出区域 */
+        #output {
+            flex: 1;
+            padding: 16px;
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        
+        .output-line { margin-bottom: 4px; }
+        .output-info { color: var(--accent-blue); }
+        .output-success { color: var(--accent-green); }
+        .output-error { color: var(--accent-red); }
+        .output-warn { color: var(--accent-orange); }
+        .output-llm { color: var(--accent-purple); }
+        .output-stream { color: var(--text-primary); }
+        
+        /* API 配置面板 */
+        .config-panel {
+            padding: 16px;
+        }
+        
+        .config-group {
+            margin-bottom: 16px;
+        }
+        
+        .config-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .config-input {
+            width: 100%;
+            padding: 8px 12px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 13px;
+        }
+        
+        .config-input:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+        }
+        
+        .config-input-password {
+            font-family: monospace;
+            letter-spacing: 2px;
+        }
+        
+        .config-row {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .config-row .config-group {
+            flex: 1;
+        }
+        
+        .slider-value {
+            color: var(--accent-blue);
+        }
+        
+        /* Token 统计 */
+        .stats-panel {
+            padding: 16px;
+        }
+        
+        .stats-card {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+        
+        .stats-title {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+        
+        .stats-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .stats-sub {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        
+        .stats-grid .stats-card {
+            margin-bottom: 0;
+        }
+        
+        .stats-grid .stats-value {
+            font-size: 18px;
+        }
+        
+        /* 快捷键提示 */
+        .shortcuts {
+            padding: 16px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            border-top: 1px solid var(--border-color);
+        }
+        
+        .shortcut-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        
+        kbd {
+            background: var(--bg-tertiary);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+
+        /* 流式输出动画 */
+        .streaming-cursor {
+            display: inline-block;
+            width: 8px;
+            height: 16px;
+            background: var(--accent-purple);
+            animation: blink 1s infinite;
+            vertical-align: middle;
+            margin-left: 2px;
+        }
+        
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+        
+        /* 响应式 */
+        @media (max-width: 1200px) {
+            .sidebar { width: 180px; }
+            .output-panel { width: 350px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- ========== 顶部导航 ========== -->
+    <header class="header">
+        <div class="header-left">
+            <div class="logo">
+                <span>🤖</span>
+                <span>LLM Agent SDK Playground</span>
+            </div>
+            <div class="model-selector">
+                <select id="modelSelect">
+                    <optgroup label="OpenAI">
+                        <option value="gpt-4o">GPT-4o</option>
+                        <option value="gpt-4o-mini" selected>GPT-4o-mini</option>
+                        <option value="gpt-3.5-turbo">GPT-3.5-turbo</option>
+                    </optgroup>
+                    <optgroup label="Anthropic">
+                        <option value="claude-3-5-sonnet">Claude 3.5 Sonnet</option>
+                        <option value="claude-3-haiku">Claude 3 Haiku</option>
+                    </optgroup>
+                    <optgroup label="国产模型">
+                        <option value="qwen-plus">通义千问 Plus</option>
+                        <option value="glm-4">智谱 GLM-4</option>
+                        <option value="deepseek-chat">DeepSeek Chat</option>
+                    </optgroup>
+                </select>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="status-indicator">
+                <div id="statusDot" class="status-dot"></div>
+                <span id="statusText">初始化中...</span>
+            </div>
+            <button class="btn btn-secondary" onclick="showApiConfig()">🔑 API 设置</button>
+            <button id="runBtn" class="btn btn-primary" onclick="runCode()" disabled>
+                ▶ 运行
+            </button>
+        </div>
+    </header>
+    
+    <!-- ========== 主体内容 ========== -->
+    <main class="main-container">
+        <!-- 左侧边栏 - 模板 -->
+        <aside class="sidebar">
+            <div class="sidebar-header">📚 代码模板</div>
+            <div class="template-list" id="templateList">
+                <!-- 动态生成 -->
+            </div>
+        </aside>
+        
+        <!-- 中间 - 编辑器 -->
+        <section class="editor-panel">
+            <div class="editor-toolbar">
+                <div class="editor-tabs">
+                    <button class="editor-tab active">main.py</button>
+                </div>
+                <div style="font-size: 12px; color: var(--text-secondary);">
+                    <span id="cursorPos">行 1, 列 1</span>
+                </div>
+            </div>
+            <div id="editor-container"></div>
+        </section>
+        
+        <!-- 右侧 - 输出和配置 -->
+        <aside class="output-panel">
+            <div class="output-tabs">
+                <button class="output-tab active" onclick="switchTab('output')">📤 输出</button>
+                <button class="output-tab" onclick="switchTab('config')">⚙️ 配置</button>
+                <button class="output-tab" onclick="switchTab('stats')">📊 统计</button>
+            </div>
+            
+            <div class="output-content">
+                <!-- 输出 Tab -->
+                <div id="tab-output" class="tab-pane active">
+                    <div id="output">等待运行代码...</div>
+                    <div class="shortcuts">
+                        <div class="shortcut-item"><span>运行代码</span><kbd>Ctrl</kbd> + <kbd>Enter</kbd></div>
+                        <div class="shortcut-item"><span>停止运行</span><kbd>Ctrl</kbd> + <kbd>C</kbd></div>
+                        <div class="shortcut-item"><span>清空输出</span><kbd>Ctrl</kbd> + <kbd>L</kbd></div>
+                    </div>
+                </div>
+                
+                <!-- 配置 Tab -->
+                <div id="tab-config" class="tab-pane">
+                    <div class="config-panel">
+                        <div class="config-group">
+                            <div class="config-label">
+                                <span>OpenAI API Key</span>
+                                <span style="color: var(--accent-green);" id="openaiStatus">未配置</span>
+                            </div>
+                            <input type="password" class="config-input config-input-password" 
+                                   id="openaiKey" placeholder="sk-..." onchange="saveApiKey('openai')">
+                        </div>
+                        
+                        <div class="config-group">
+                            <div class="config-label">
+                                <span>Anthropic API Key</span>
+                                <span id="anthropicStatus">未配置</span>
+                            </div>
+                            <input type="password" class="config-input config-input-password" 
+                                   id="anthropicKey" placeholder="sk-ant-..." onchange="saveApiKey('anthropic')">
+                        </div>
+                        
+                        <div class="config-group">
+                            <div class="config-label">
+                                <span>国产模型 API Key</span>
+                                <span id="domesticStatus">未配置</span>
+                            </div>
+                            <input type="password" class="config-input config-input-password" 
+                                   id="domesticKey" placeholder="API Key" onchange="saveApiKey('domestic')">
+                        </div>
+                        
+                        <hr style="border-color: var(--border-color); margin: 20px 0;">
+                        
+                        <div class="config-group">
+                            <div class="config-label">
+                                <span>Temperature</span>
+                                <span class="slider-value" id="tempValue">0.7</span>
+                            </div>
+                            <input type="range" class="config-input" id="temperature" 
+                                   min="0" max="2" step="0.1" value="0.7" 
+                                   oninput="document.getElementById('tempValue').textContent = this.value">
+                        </div>
+                        
+                        <div class="config-row">
+                            <div class="config-group">
+                                <div class="config-label">Max Tokens</div>
+                                <input type="number" class="config-input" id="maxTokens" value="1024" min="1" max="4096">
+                            </div>
+                            <div class="config-group">
+                                <div class="config-label">Top P</div>
+                                <input type="number" class="config-input" id="topP" value="1" min="0" max="1" step="0.1">
+                            </div>
+                        </div>
+                        
+                        <div class="config-group" style="margin-top: 20px;">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="checkbox" id="streamMode" checked>
+                                <span style="font-size: 13px;">启用流式输出 (Streaming)</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 统计 Tab -->
+                <div id="tab-stats" class="tab-pane">
+                    <div class="stats-panel">
+                        <div class="stats-card">
+                            <div class="stats-title">本次对话 Token</div>
+                            <div class="stats-value" id="totalTokens">0</div>
+                            <div class="stats-sub">
+                                输入: <span id="inputTokens">0</span> | 
+                                输出: <span id="outputTokens">0</span>
+                            </div>
+                        </div>
+                        
+                        <div class="stats-grid">
+                            <div class="stats-card">
+                                <div class="stats-title">预估费用</div>
+                                <div class="stats-value">$<span id="estimatedCost">0.000</span></div>
+                            </div>
+                            <div class="stats-card">
+                                <div class="stats-title">响应时间</div>
+                                <div class="stats-value"><span id="responseTime">0</span>ms</div>
+                            </div>
+                        </div>
+                        
+                        <div class="stats-card" style="margin-top: 12px;">
+                            <div class="stats-title">累计使用</div>
+                            <div class="stats-value"><span id="sessionTokens">0</span></div>
+                            <div class="stats-sub">本次会话累计 Token</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <!-- ========== Scripts ========== -->
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
+    
+    <script>
+        // ==================== 全局变量 ====================
+        let editor = null;
+        let pyodide = null;
+        let isRunning = false;
+        let abortController = null;
+        
+        // 统计数据
+        let stats = {
+            inputTokens: 0,
+            outputTokens: 0,
+            totalTokens: 0,
+            sessionTokens: 0,
+            responseTime: 0
+        };
+        
+        // API Keys (存储在 localStorage)
+        const apiKeys = {
+            openai: localStorage.getItem('openai_key') || '',
+            anthropic: localStorage.getItem('anthropic_key') || '',
+            domestic: localStorage.getItem('domestic_key') || ''
+        };
+
+        // ==================== 代码模板 ====================
+        const templates = [
+            {
+                id: 'basic-chat',
+                title: '💬 基础对话',
+                desc: '最简单的 LLM 调用示例',
+                tag: 'openai',
+                code: `# 基础对话示例
+from agent_sdk import LLM
+
+# 创建 LLM 客户端
+llm = LLM(model="gpt-4o-mini")
+
+# 发送消息
+response = llm.chat("你好，请介绍一下你自己")
+print(response)
+`
+            },
+            {
+                id: 'stream-chat',
+                title: '🌊 流式输出',
+                desc: '实时流式获取 LLM 响应',
+                tag: 'openai',
+                code: `# 流式输出示例
+from agent_sdk import LLM
+
+llm = LLM(model="gpt-4o-mini")
+
+# 流式输出
+print("🤖 AI: ", end="")
+for chunk in llm.stream("写一首关于人工智能的短诗"):
+    print(chunk, end="", flush=True)
+print()  # 换行
+`
+            },
+            {
+                id: 'multi-turn',
+                title: '🔄 多轮对话',
+                desc: '带上下文的连续对话',
+                tag: 'openai',
+                code: `# 多轮对话示例
+from agent_sdk import LLM, Conversation
+
+# 创建对话
+conv = Conversation(model="gpt-4o-mini")
+
+# 第一轮
+print("👤 用户: 我叫小明")
+response1 = conv.chat("我叫小明")
+print(f"🤖 AI: {response1}\\n")
+
+# 第二轮（AI 会记住上文）
+print("👤 用户: 我叫什么名字？")
+response2 = conv.chat("我叫什么名字？")
+print(f"🤖 AI: {response2}")
+`
+            },
+            {
+                id: 'system-prompt',
+                title: '📋 系统提示词',
+                desc: '自定义 AI 角色和行为',
+                tag: 'openai',
+                code: `# 系统提示词示例
+from agent_sdk import LLM
+
+# 创建一个专业翻译助手
+llm = LLM(
+    model="gpt-4o-mini",
+    system_prompt="""你是一位专业的中英文翻译专家。
+规则：
+1. 中文翻译成英文，英文翻译成中文
+2. 保持原文的语气和风格
+3. 只输出翻译结果，不要解释"""
+)
+
+# 测试翻译
+text = "人工智能正在改变我们的生活方式"
+print(f"原文: {text}")
+print(f"翻译: {llm.chat(text)}")
+`
+            },
+            {
+                id: 'function-call',
+                title: '🔧 函数调用',
+                desc: 'LLM 调用自定义函数',
+                tag: 'agent',
+                code: `# 函数调用示例
+from agent_sdk import Agent, Tool
+
+# 定义工具函数
+def get_weather(city: str) -> str:
+    """获取天气信息"""
+    # 模拟天气数据
+    weather_data = {
+        "北京": "晴天, 25°C",
+        "上海": "多云, 28°C", 
+        "深圳": "雷阵雨, 30°C"
+    }
+    return weather_data.get(city, f"{city}: 数据暂无")
+
+def calculate(expression: str) -> str:
+    """计算数学表达式"""
+    try:
+        return str(eval(expression))
+    except:
+        return "计算错误"
+
+# 创建 Agent 并注册工具
+agent = Agent(model="gpt-4o-mini")
+agent.add_tool(Tool("get_weather", get_weather, "获取指定城市的天气"))
+agent.add_tool(Tool("calculate", calculate, "计算数学表达式"))
+
+# Agent 会自动选择合适的工具
+print(agent.run("北京今天天气怎么样？"))
+print(agent.run("计算 123 * 456 + 789"))
+`
+            },
+            {
+                id: 'rag-example',
+                title: '📚 RAG 检索增强',
+                desc: '基于知识库的问答',
+                tag: 'agent',
+                code: `# RAG 检索增强生成示例
+from agent_sdk import LLM, VectorStore
+
+# 模拟知识库
+knowledge_base = [
+    "Agent SDK 是一个用于构建 AI 应用的 Python 框架。",
+    "Agent SDK 支持 OpenAI、Claude、通义千问等多种模型。",
+    "Agent SDK 提供了工具调用、多轮对话、RAG 等功能。",
+    "使用 Agent SDK 只需几行代码即可创建智能对话机器人。",
+]
+
+# 创建向量存储
+store = VectorStore()
+for doc in knowledge_base:
+    store.add(doc)
+
+# 创建 LLM
+llm = LLM(model="gpt-4o-mini")
+
+# RAG 问答
+question = "Agent SDK 支持哪些模型？"
+print(f"❓ 问题: {question}\\n")
+
+# 检索相关文档
+relevant_docs = store.search(question, top_k=2)
+print("📄 检索到的相关文档:")
+for i, doc in enumerate(relevant_docs):
+    print(f"   {i+1}. {doc}")
+
+# 生成回答
+context = "\\n".join(relevant_docs)
+prompt = f\"\"\"基于以下知识回答问题：
+
+知识：
+{context}
+
+问题：{question}
+
+回答：\"\"\"
+
+answer = llm.chat(prompt)
+print(f"\\n🤖 回答: {answer}")
+`
+            },
+            {
+                id: 'claude-example',
+                title: '🎭 Claude 模型',
+                desc: '使用 Anthropic Claude',
+                tag: 'claude',
+                code: `# Claude 模型示例
+from agent_sdk import LLM
+
+# 使用 Claude 模型
+llm = LLM(
+    model="claude-3-5-sonnet",
+    provider="anthropic"
+)
+
+# Claude 擅长长文本和复杂推理
+response = llm.chat("""
+请分析以下代码的时间复杂度，并解释原因：
+
+def fibonacci(n):
+    if n <= 1:
+        return n
+    return fibonacci(n-1) + fibonacci(n-2)
+""")
+
+print(response)
+`
+            },
+            {
+                id: 'qwen-example',
+                title: '🇨🇳 通义千问',
+                desc: '使用阿里云通义千问',
+                tag: 'qwen',
+                code: `# 通义千问示例
+from agent_sdk import LLM
+
+# 使用通义千问
+llm = LLM(
+    model="qwen-plus",
+    provider="alibaba"
+)
+
+# 中文能力强
+response = llm.chat("用文言文写一篇关于人工智能的短文，100字左右")
+print(response)
+`
+            },
+            {
+                id: 'parallel-calls',
+                title: '⚡ 并行调用',
+                desc: '同时调用多个模型',
+                tag: 'agent',
+                code: `# 并行调用示例
+from agent_sdk import LLM, parallel_run
+
+# 定义多个任务
+tasks = [
+    {"model": "gpt-4o-mini", "prompt": "用一句话解释什么是机器学习"},
+    {"model": "gpt-4o-mini", "prompt": "用一句话解释什么是深度学习"},
+    {"model": "gpt-4o-mini", "prompt": "用一句话解释什么是神经网络"},
+]
+
+# 并行执行
+print("⚡ 并行调用 3 个任务...\\n")
+results = parallel_run(tasks)
+
+for i, result in enumerate(results):
+    print(f"任务 {i+1}: {result}\\n")
+`
+            },
+            {
+                id: 'json-mode',
+                title: '📦 JSON 输出',
+                desc: '让 LLM 输出结构化 JSON',
+                tag: 'openai',
+                code: `# JSON 格式输出示例
+from agent_sdk import LLM
+import json
+
+llm = LLM(
+    model="gpt-4o-mini",
+    response_format="json"
+)
+
+# 请求结构化数据
+response = llm.chat("""
+分析以下句子的情感，返回 JSON 格式：
+句子："这个产品真的太棒了，我非常喜欢！"
+
+返回格式：
+{
+    "sentiment": "positive/negative/neutral",
+    "confidence": 0.0-1.0,
+    "keywords": ["关键词1", "关键词2"]
+}
+""")
+
+# 解析 JSON
+data = json.loads(response)
+print(f"情感: {data['sentiment']}")
+print(f"置信度: {data['confidence']}")
+print(f"关键词: {data['keywords']}")
+`
+            }
+        ];
+
+        // ==================== Agent SDK 模拟实现 ====================
+        const agentSDKCode = `
+# ========== Agent SDK v2.0 for LLM ==========
+import json
+import sys
+
+# 全局配置
+_config = {
+    "api_keys": {},
+    "temperature": 0.7,
+    "max_tokens": 1024,
+    "stream": True
+}
+
+def set_api_key(provider, key):
+    _config["api_keys"][provider] = key
+
+def set_config(**kwargs):
+    _config.update(kwargs)
+
+class LLM:
+    """大语言模型客户端"""
+    
+    def __init__(self, model="gpt-4o-mini", provider=None, system_prompt=None, response_format=None):
+        self.model = model
+        self.provider = provider or self._detect_provider(model)
+        self.system_prompt = system_prompt
+        self.response_format = response_format
+        self.messages = []
+        
+        if system_prompt:
+            self.messages.append({"role": "system", "content": system_prompt})
+    
+    def _detect_provider(self, model):
+        if "gpt" in model:
+            return "openai"
+        elif "claude" in model:
+            return "anthropic"
+        elif "qwen" in model:
+            return "alibaba"
+        elif "glm" in model:
+            return "zhipu"
+        return "openai"
+    
+    def chat(self, message):
+        """发送消息并获取回复"""
+        self.messages.append({"role": "user", "content": message})
+        
+        # 模拟 LLM 响应
+        response = self._mock_response(message)
+        
+        self.messages.append({"role": "assistant", "content": response})
+        return response
+    
+    def stream(self, message):
+        """流式获取回复"""
+        self.messages.append({"role": "user", "content": message})
+        
+        response = self._mock_response(message)
+        
+        # 模拟流式输出
+        words = response.split()
+        for i, word in enumerate(words):
+            yield word + (" " if i < len(words) - 1 else "")
+        
+        self.messages.append({"role": "assistant", "content": response})
+    
+    def _mock_response(self, message):
+        """模拟响应 - 实际项目中这里调用真实 API"""
+        responses = {
+            "default": f"收到您的消息：'{message[:50]}...'。这是 {self.model} 的模拟响应。在实际使用中，这里会调用真实的 API 接口。",
+            "介绍": f"我是 {self.model}，一个大型语言模型。我可以帮助您完成各种任务，包括回答问题、写作、编程等。",
+            "翻译": "Artificial intelligence is changing the way we live.",
+            "天气": "根据您的查询，这是一个需要调用外部 API 的功能。",
+            "计算": "这需要使用工具来完成计算。",
+        }
+        
+        # 简单关键词匹配
+        for key, resp in responses.items():
+            if key in message:
+                return resp
+        
+        # 针对特定问题的模拟响应
+        if "时间复杂度" in message or "fibonacci" in message.lower():
+            return """这段斐波那契代码的时间复杂度是 O(2^n)。
+
+原因分析：
+1. 每次调用 fibonacci(n) 会产生两次递归调用
+2. 形成一棵二叉递归树
+3. 树的深度为 n，节点总数约为 2^n
+
+这是非常低效的实现，可以通过动态规划或记忆化优化到 O(n)。"""
+        
+        if "文言文" in message:
+            return """《论智机》
+
+夫智机者，人之巧思所造也。能辨文识图，通古博今。虽无血肉之躯，却有思辨之能。或问其理，对答如流；或令其书，文采斐然。然机器终非人，不知喜怒哀乐，惟循程序而行。君子善用之，则利济天下；小人滥用之，则祸患无穷。是以用智机者，当慎之又慎也。"""
+        
+        if "机器学习" in message and "一句话" in message:
+            return "机器学习是让计算机从数据中自动学习规律和模式，无需显式编程。"
+        
+        if "深度学习" in message and "一句话" in message:
+            return "深度学习是机器学习的子领域，通过多层神经网络自动学习数据的层次化特征表示。"
+        
+        if "神经网络" in message and "一句话" in message:
+            return "神经网络是一种模仿生物神经系统结构的计算模型，由大量相互连接的节点组成。"
+        
+        if "JSON" in message or "json" in message:
+            return '{"sentiment": "positive", "confidence": 0.95, "keywords": ["太棒了", "非常喜欢"]}'
+        
+        return responses["default"]
+
+
+class Conversation:
+    """多轮对话管理"""
+    
+    def __init__(self, model="gpt-4o-mini", system_prompt=None):
+        self.llm = LLM(model=model, system_prompt=system_prompt)
+        self.history = []
+    
+    def chat(self, message):
+        response = self.llm.chat(message)
+        self.history.append({"user": message, "assistant": response})
+        return response
+    
+    def clear(self):
+        self.history = []
+        self.llm.messages = []
+
+
+class Tool:
+    """工具定义"""
+    
+    def __init__(self, name, func, description=""):
+        self.name = name
+        self.func = func
+        self.description = description
+    
+    def execute(self, *args, **kwargs):
+        return self.func(*args, **kwargs)
+
+
+class Agent:
+    """智能代理"""
+    
+    def __init__(self, model="gpt-4o-mini"):
+        self.model = model
+        self.tools = {}
+        self.llm = LLM(model=model)
+    
+    def add_tool(self, tool):
+        self.tools[tool.name] = tool
+        return self
+    
+    def run(self, task):
+        print(f"🤖 Agent 收到任务: {task}")
+        print(f"   可用工具: {list(self.tools.keys())}")
+        
+        # 简单的工具匹配逻辑
+        for name, tool in self.tools.items():
+            if name in task or tool.description in task:
+                # 提取参数
+                if "天气" in task:
+                    for city in ["北京", "上海", "深圳", "广州"]:
+                        if city in task:
+                            result = tool.execute(city)
+                            print(f"   调用工具: {name}({city})")
+                            return f"🔧 {result}"
+                
+                if "计算" in task:
+                    import re
+                    nums = re.findall(r'[\\d+\\-*/().]+', task)
+                    if nums:
+                        expr = ''.join(nums)
+                        result = tool.execute(expr)
+                        print(f"   调用工具: {name}({expr})")
+                        return f"🔧 计算结果: {result}"
+        
+        # 没有匹配的工具，使用 LLM
+        return self.llm.chat(task)
+
+
+class VectorStore:
+    """简单的向量存储（模拟）"""
+    
+    def __init__(self):
+        self.documents = []
+    
+    def add(self, text):
+        self.documents.append(text)
+    
+    def search(self, query, top_k=2):
+        # 简单的关键词匹配（实际应该用向量相似度）
+        scored = []
+        query_words = set(query.lower().split())
+        
+        for doc in self.documents:
+            doc_words = set(doc.lower().split())
+            score = len(query_words & doc_words)
+            scored.append((score, doc))
+        
+        scored.sort(reverse=True, key=lambda x: x[0])
+        return [doc for _, doc in scored[:top_k]]
+
+
+def parallel_run(tasks):
+    """并行执行多个任务（模拟）"""
+    results = []
+    for task in tasks:
+        llm = LLM(model=task.get("model", "gpt-4o-mini"))
+        result = llm.chat(task.get("prompt", ""))
+        results.append(result)
+    return results
+
+
+# 注册模块
+from types import ModuleType
+
+agent_sdk = ModuleType('agent_sdk')
+agent_sdk.LLM = LLM
+agent_sdk.Conversation = Conversation
+agent_sdk.Tool = Tool
+agent_sdk.Agent = Agent
+agent_sdk.VectorStore = VectorStore
+agent_sdk.parallel_run = parallel_run
+agent_sdk.set_api_key = set_api_key
+agent_sdk.set_config = set_config
+
+sys.modules['agent_sdk'] = agent_sdk
+`;
+
+        // ==================== 初始化 ====================
+        async function init() {
+            renderTemplates();
+            initMonaco();
+            await initPyodide();
+            loadApiKeys();
+        }
+
+        // 渲染模板列表
+        function renderTemplates() {
+            const container = document.getElementById('templateList');
+            container.innerHTML = templates.map((t, index) => `
+                <div class="template-item ${index === 0 ? 'active' : ''}" 
+                     onclick="loadTemplate('${t.id}')" data-id="${t.id}">
+                    <div class="title">${t.title}</div>
+                    <div class="desc">${t.desc}</div>
+                    <span class="tag tag-${t.tag}">${t.tag}</span>
+                </div>
+            `).join('');
+        }
+
+        // 加载模板
+        function loadTemplate(id) {
+            const template = templates.find(t => t.id === id);
+            if (template && editor) {
+                editor.setValue(template.code);
+                
+                // 更新选中状态
+                document.querySelectorAll('.template-item').forEach(el => {
+                    el.classList.toggle('active', el.dataset.id === id);
+                });
+            }
+        }
+
+        // 初始化 Monaco Editor
+        function initMonaco() {
+            require.config({ 
+                paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs' } 
+            });
+            
+            require(['vs/editor/editor.main'], function() {
+                // 自定义主题
+                monaco.editor.defineTheme('agent-dark', {
+                    base: 'vs-dark',
+                    inherit: true,
+                    rules: [
+                        { token: 'comment', foreground: '6a9955' },
+                        { token: 'string', foreground: 'ce9178' },
+                        { token: 'keyword', foreground: 'c586c0' },
+                        { token: 'number', foreground: 'b5cea8' },
+                    ],
+                    colors: {
+                        'editor.background': '#0d1117',
+                        'editor.foreground': '#e6edf3',
+                        'editorLineNumber.foreground': '#6e7681',
+                        'editorCursor.foreground': '#58a6ff',
+                        'editor.selectionBackground': '#264f78',
+                    }
+                });
+                
+                editor = monaco.editor.create(document.getElementById('editor-container'), {
+                    value: templates[0].code,
+                    language: 'python',
+                    theme: 'agent-dark',
+                    fontSize: 14,
+                    fontFamily: "'SF Mono', Monaco, 'Courier New', monospace",
+                    minimap: { enabled: false },
+                    automaticLayout: true,
+                    scrollBeyondLastLine: false,
+                    lineNumbers: 'on',
+                    renderLineHighlight: 'line',
+                    tabSize: 4,
+                    insertSpaces: true,
+                    wordWrap: 'on',
+                    padding: { top: 16, bottom: 16 },
+                    suggest: {
+                        showKeywords: true,
+                        showSnippets: true,
+                    }
+                });
+                
+                // 快捷键
+                editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, runCode);
+                editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyL, clearOutput);
+                
+                // 光标位置
+                editor.onDidChangeCursorPosition((e) => {
+                    document.getElementById('cursorPos').textContent = 
+                        `行 ${e.position.lineNumber}, 列 ${e.position.column}`;
+                });
+                
+                // 注册自动补全
+                registerCompletions();
+            });
+        }
+
+        // 注册自动补全
+        function registerCompletions() {
+            monaco.languages.registerCompletionItemProvider('python', {
+                provideCompletionItems: () => {
+                    const suggestions = [
+                        {
+                            label: 'from agent_sdk import',
+                            kind: monaco.languages.CompletionItemKind.Snippet,
+                            insertText: 'from agent_sdk import LLM, Agent, Tool',
+                            documentation: '导入 Agent SDK 核心组件'
+                        },
+                        {
+                            label: 'LLM',
+                            kind: monaco.languages.CompletionItemKind.Class,
+                            insertText: 'LLM(model="${1:gpt-4o-mini}")',
+                            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                            documentation: '创建 LLM 客户端'
+                        },
+                        {
+                            label: 'llm.chat',
+                            kind: monaco.languages.CompletionItemKind.Method,
+                            insertText: 'llm.chat("${1:message}")',
+                            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                            documentation: '发送消息获取回复'
+                        },
+                        {
+                            label: 'llm.stream',
+                            kind: monaco.languages.CompletionItemKind.Method,
+                            insertText: 'for chunk in llm.stream("${1:message}"):\n    print(chunk, end="")',
+                            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                            documentation: '流式获取回复'
+                        },
+                        {
+                            label: 'Agent',
+                            kind: monaco.languages.CompletionItemKind.Class,
+                            insertText: 'Agent(model="${1:gpt-4o-mini}")',
+                            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                            documentation: '创建智能代理'
+                        },
+                        {
+                            label: 'Tool',
+                            kind: monaco.languages.CompletionItemKind.Class,
+                            insertText: 'Tool("${1:name}", ${2:func}, "${3:description}")',
+                            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                            documentation: '定义工具'
+                        },
+                        {
+                            label: 'Conversation',
+                            kind: monaco.languages.CompletionItemKind.Class,
+                            insertText: 'Conversation(model="${1:gpt-4o-mini}")',
+                            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                            documentation: '创建多轮对话'
+                        },
+                    ];
+                    return { suggestions };
+                }
+            });
+        }
+
+        // 初始化 Pyodide
+        async function initPyodide() {
+            updateStatus('loading', '加载 Python 环境...');
+            
+            try {
+                pyodide = await loadPyodide({
+                    indexURL: "https://cdn.jsdelivr.net/pyodide/v0.24.1/full/"
+                });
+                
+                // 加载 Agent SDK
+                await pyodide.runPython(agentSDKCode);
+                
+                updateStatus('ready', '就绪');
+                document.getElementById('runBtn').disabled = false;
+                log('✅ Python 环境已就绪', 'success');
+                log('💡 选择左侧模板开始体验，或直接编写代码', 'info');
+                log('⌨️ 快捷键: Ctrl+Enter 运行 | Ctrl+L 清空输出\n', 'info');
+                
+            } catch (err) {
+                updateStatus('error', '加载失败');
+                log('❌ 初始化失败: ' + err.message, 'error');
+            }
+        }
+
+        // ==================== 代码执行 ====================
+        async function runCode() {
+            if (!pyodide || !editor || isRunning) return;
+            
+            const code = editor.getValue();
+            isRunning = true;
+            
+            document.getElementById('runBtn').disabled = true;
+            document.getElementById('runBtn').innerHTML = '⏳ 运行中...';
+            updateStatus('running', '运行中...');
+            clearOutput();
+            
+            const startTime = performance.now();
+            
+            try {
+                // 自动加载依赖
+                await pyodide.loadPackagesFromImports(code);
+                
+                // 重定向输出
+                await pyodide.runPython(`
+import sys
+from io import StringIO
+sys.stdout = StringIO()
+sys.stderr = StringIO()
+`);
+                
+                // 执行代码
+                await pyodide.runPythonAsync(code);
+                
+                // 获取输出
+                const stdout = pyodide.runPython('sys.stdout.getvalue()');
+                const stderr = pyodide.runPython('sys.stderr.getvalue()');
+                
+                if (stdout) {
+                    // 检测是否有流式输出标记
+                    if (stdout.includes('🤖 AI:') || stdout.includes('chunk')) {
+                        simulateStreaming(stdout);
+                    } else {
+                        log(stdout);
+                    }
+                }
+                if (stderr) log('⚠️ ' + stderr, 'warn');
+                if (!stdout && !stderr) log('(代码执行完成)', 'info');
+                
+                // 更新统计
+                stats.responseTime = Math.round(performance.now() - startTime);
+                updateStats(stdout);
+                
+                updateStatus('ready', '完成');
+                
+            } catch (err) {
+                log('❌ 错误: ' + err.message, 'error');
+                updateStatus('error', '出错');
+            } finally {
+                isRunning = false;
+                document.getElementById('runBtn').disabled = false;
+                document.getElementById('runBtn').innerHTML = '▶ 运行';
+            }
+        }
+
+        // 模拟流式输出效果
+        function simulateStreaming(text) {
+            const output = document.getElementById('output');
+            output.innerHTML = '';
+            
+            const lines = text.split('\n');
+            let lineIndex = 0;
+            let charIndex = 0;
+            let currentLine = '';
+            
+            function typeChar() {
+                if (lineIndex >= lines.length) return;
+                
+                const line = lines[lineIndex];
+                
+                if (charIndex < line.length) {
+                    currentLine += line[charIndex];
+                    output.innerHTML = output.innerHTML.replace(/<span class="streaming-cursor"><\/span>$/, '');
+                    
+                    // 检测是否是 LLM 输出行
+                    const isLLMLine = line.includes('🤖') || (lineIndex > 0 && lines[lineIndex-1].includes('🤖'));
+                    const className = isLLMLine ? 'output-llm' : '';
+                    
+                    output.innerHTML += `<span class="${className}">${line[charIndex]}</span>`;
+                    output.innerHTML += '<span class="streaming-cursor"></span>';
+                    
+                    charIndex++;
+                    output.scrollTop = output.scrollHeight;
+                    
+                    // 调整速度
+                    const delay = Math.random() * 30 + 10;
+                    setTimeout(typeChar, delay);
+                } else {
+                    output.innerHTML = output.innerHTML.replace(/<span class="streaming-cursor"><\/span>$/, '');
+                    output.innerHTML += '\n';
+                    lineIndex++;
+                    charIndex = 0;
+                    currentLine = '';
+                    setTimeout(typeChar, 50);
+                }
+            }
+            
+            typeChar();
+        }
+
+        // 更新统计
+        function updateStats(output) {
+            // 简单的 token 估算（实际应该用 tokenizer）
+            const words = output ? output.split(/\s+/).length : 0;
+            const estimatedTokens = Math.round(words * 1.3);
+            
+            stats.outputTokens = estimatedTokens;
+            stats.inputTokens = Math.round(editor.getValue().length / 4);
+            stats.totalTokens = stats.inputTokens + stats.outputTokens;
+            stats.sessionTokens += stats.totalTokens;
+            
+            // 费用估算（GPT-4o-mini 价格）
+            const cost = (stats.inputTokens * 0.00015 + stats.outputTokens * 0.0006) / 1000;
+            
+            document.getElementById('inputTokens').textContent = stats.inputTokens;
+            document.getElementById('outputTokens').textContent = stats.outputTokens;
+            document.getElementById('totalTokens').textContent = stats.totalTokens;
+            document.getElementById('sessionTokens').textContent = stats.sessionTokens;
+            document.getElementById('estimatedCost').textContent = cost.toFixed(4);
+            document.getElementById('responseTime').textContent = stats.responseTime;
+        }
+
+        // ==================== UI 函数 ====================
+        function updateStatus(type, text) {
+            const dot = document.getElementById('statusDot');
+            const textEl = document.getElementById('statusText');
+            
+            dot.className = 'status-dot ' + type;
+            textEl.textContent = text;
+        }
+
+        function log(message, type = '') {
+            const output = document.getElementById('output');
+            const div = document.createElement('div');
+            div.className = 'output-line' + (type ? ' output-' + type : '');
+            div.textContent = message;
+            output.appendChild(div);
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function clearOutput() {
+            document.getElementById('output').innerHTML = '';
+        }
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.output-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.textContent.includes(
+                    tabName === 'output' ? '输出' : (tabName === 'config' ? '配置' : '统计')
+                ));
+            });
+            
+            document.querySelectorAll('.tab-pane').forEach(pane => {
+                pane.classList.toggle('active', pane.id === 'tab-' + tabName);
+            });
+        }
+
+        function showApiConfig() {
+            switchTab('config');
+        }
+
+        // API Key 管理
+        function saveApiKey(provider) {
+            const inputId = provider === 'openai' ? 'openaiKey' : 
+                           (provider === 'anthropic' ? 'anthropicKey' : 'domesticKey');
+            const statusId = provider === 'openai' ? 'openaiStatus' : 
+                            (provider === 'anthropic' ? 'anthropicStatus' : 'domesticStatus');
+            
+            const key = document.getElementById(inputId).value;
+            
+            if (key) {
+                localStorage.setItem(provider + '_key', key);
+                apiKeys[provider] = key;
+                document.getElementById(statusId).textContent = '✓ 已配置';
+                document.getElementById(statusId).style.color = 'var(--accent-green)';
+            }
+        }
+
+        function loadApiKeys() {
+            ['openai', 'anthropic', 'domestic'].forEach(provider => {
+                const key = localStorage.getItem(provider + '_key');
+                if (key) {
+                    apiKeys[provider] = key;
+                    const inputId = provider === 'openai' ? 'openaiKey' : 
+                                   (provider === 'anthropic' ? 'anthropicKey' : 'domesticKey');
+                    const statusId = provider === 'openai' ? 'openaiStatus' : 
+                                    (provider === 'anthropic' ? 'anthropicStatus' : 'domesticStatus');
+                    
+                    document.getElementById(inputId).value = key;
+                    document.getElementById(statusId).textContent = '✓ 已配置';
+                    document.getElementById(statusId).style.color = 'var(--accent-green)';
+                }
+            });
+        }
+
+        // ==================== 启动 ====================
+        init();
+    </script>
+</body>
+</html>

@@ -1,0 +1,1428 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🤖 LLM SDK Playground - 在线测试平台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #21262d;
+            --border-color: #30363d;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --accent-blue: #58a6ff;
+            --accent-green: #3fb950;
+            --accent-orange: #d29922;
+            --accent-red: #f85149;
+            --accent-purple: #a371f7;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        /* ========== 顶部导航 ========== */
+        .header {
+            background: var(--bg-secondary);
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0;
+        }
+        
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .logo {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-orange);
+        }
+        
+        .status-dot.ready { background: var(--accent-green); }
+        .status-dot.running { background: var(--accent-blue); animation: pulse 1s infinite; }
+        .status-dot.error { background: var(--accent-red); }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: var(--accent-green);
+            color: #000;
+        }
+        
+        .btn-primary:hover { filter: brightness(1.1); }
+        .btn-primary:disabled { background: var(--bg-tertiary); color: var(--text-secondary); cursor: not-allowed; }
+        
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+        
+        .btn-secondary:hover { background: var(--border-color); }
+        
+        /* ========== 主体布局 ========== */
+        .main-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+        
+        /* 左侧边栏 - 模板选择 */
+        .sidebar {
+            width: 240px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+        
+        .sidebar-header {
+            padding: 16px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--border-color);
+            letter-spacing: 0.5px;
+        }
+        
+        .template-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+        
+        .template-item {
+            padding: 14px;
+            cursor: pointer;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+        
+        .template-item:hover { 
+            background: var(--bg-tertiary); 
+            border-color: var(--border-color);
+        }
+        
+        .template-item.active { 
+            background: rgba(88, 166, 255, 0.1); 
+            border-color: var(--accent-blue);
+        }
+        
+        .template-item .icon {
+            font-size: 20px;
+            margin-bottom: 8px;
+        }
+        
+        .template-item .title {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 4px;
+            color: var(--text-primary);
+        }
+        
+        .template-item .desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+        
+        /* 中间 - 编辑器 */
+        .editor-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 400px;
+        }
+        
+        .editor-toolbar {
+            background: var(--bg-secondary);
+            padding: 10px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .editor-tabs {
+            display: flex;
+            gap: 4px;
+        }
+        
+        .editor-tab {
+            padding: 6px 12px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        
+        .editor-tab.active {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+        
+        #editor-container {
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        /* 右侧 - 配置和输出 */
+        .right-panel {
+            width: 420px;
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid var(--border-color);
+            flex-shrink: 0;
+        }
+        
+        .panel-tabs {
+            display: flex;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .panel-tab {
+            flex: 1;
+            padding: 12px;
+            font-size: 12px;
+            text-align: center;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        
+        .panel-tab:hover { color: var(--text-primary); }
+        
+        .panel-tab.active {
+            color: var(--text-primary);
+            border-bottom-color: var(--accent-blue);
+            background: rgba(88, 166, 255, 0.05);
+        }
+        
+        .panel-content {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .tab-pane {
+            display: none;
+            flex: 1;
+            overflow-y: auto;
+        }
+        
+        .tab-pane.active { display: block; }
+        
+        /* 配置面板 */
+        .config-panel {
+            padding: 20px;
+        }
+        
+        .config-group {
+            margin-bottom: 20px;
+        }
+        
+        .config-label {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .config-label .hint {
+            font-weight: normal;
+            font-size: 11px;
+            color: var(--text-secondary);
+            opacity: 0.7;
+        }
+        
+        .config-input, .config-select, .config-textarea {
+            width: 100%;
+            padding: 10px 12px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        
+        .config-input:focus, .config-select:focus, .config-textarea:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+        }
+        
+        .config-textarea {
+            min-height: 80px;
+            resize: vertical;
+            font-family: monospace;
+        }
+        
+        .config-row {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .config-row .config-group {
+            flex: 1;
+        }
+        
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .slider-container input[type="range"] {
+            flex: 1;
+            height: 4px;
+            -webkit-appearance: none;
+            background: var(--border-color);
+            border-radius: 2px;
+            outline: none;
+        }
+        
+        .slider-container input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--accent-blue);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        
+        .slider-value {
+            min-width: 40px;
+            text-align: right;
+            font-size: 13px;
+            color: var(--accent-blue);
+            font-weight: 500;
+        }
+        
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+        
+        .checkbox-container input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--accent-blue);
+        }
+        
+        .checkbox-container span {
+            font-size: 13px;
+        }
+        
+        /* 输出面板 */
+        .output-panel {
+            padding: 16px;
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        
+        .output-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .output-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+        
+        .output-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .output-btn {
+            padding: 4px 10px;
+            font-size: 11px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .output-btn:hover {
+            background: var(--border-color);
+            color: var(--text-primary);
+        }
+        
+        #output {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+            min-height: 300px;
+            max-height: 500px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        
+        .output-empty {
+            color: var(--text-secondary);
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .output-line {
+            margin-bottom: 8px;
+        }
+        
+        .output-user {
+            color: var(--accent-blue);
+            font-weight: 500;
+        }
+        
+        .output-assistant {
+            color: var(--text-primary);
+            background: rgba(88, 166, 255, 0.05);
+            padding: 12px;
+            border-radius: 8px;
+            border-left: 3px solid var(--accent-blue);
+            margin: 8px 0;
+        }
+        
+        .output-system {
+            color: var(--accent-purple);
+            font-style: italic;
+            font-size: 12px;
+        }
+        
+        .output-error {
+            color: var(--accent-red);
+            background: rgba(248, 81, 73, 0.1);
+            padding: 12px;
+            border-radius: 8px;
+            border-left: 3px solid var(--accent-red);
+        }
+        
+        .output-info {
+            color: var(--accent-orange);
+        }
+        
+        /* 流式输出光标 */
+        .streaming-cursor {
+            display: inline-block;
+            width: 8px;
+            height: 16px;
+            background: var(--accent-blue);
+            animation: blink 1s infinite;
+            vertical-align: middle;
+            margin-left: 4px;
+        }
+        
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+        
+        /* 请求信息 */
+        .request-info {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border-color);
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+        
+        .request-info-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+        
+        /* 快捷键提示 */
+        .shortcuts {
+            padding: 16px;
+            font-size: 11px;
+            color: var(--text-secondary);
+            border-top: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+        }
+        
+        .shortcut-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+        
+        kbd {
+            background: var(--bg-tertiary);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+            border: 1px solid var(--border-color);
+        }
+        
+        /* 分隔线 */
+        hr {
+            border: none;
+            border-top: 1px solid var(--border-color);
+            margin: 20px 0;
+        }
+        
+        /* 响应式 */
+        @media (max-width: 1200px) {
+            .sidebar { width: 200px; }
+            .right-panel { width: 380px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- ========== 顶部导航 ========== -->
+    <header class="header">
+        <div class="header-left">
+            <div class="logo">
+                <span>🤖</span>
+                <span>LLM SDK Playground</span>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="status-indicator">
+                <div id="statusDot" class="status-dot"></div>
+                <span id="statusText">初始化中...</span>
+            </div>
+            <button id="runBtn" class="btn btn-primary" onclick="runCode()" disabled>
+                ▶ 运行测试
+            </button>
+        </div>
+    </header>
+    
+    <!-- ========== 主体内容 ========== -->
+    <main class="main-container">
+        <!-- 左侧边栏 - 模板 -->
+        <aside class="sidebar">
+            <div class="sidebar-header">📚 测试用例</div>
+            <div class="template-list" id="templateList">
+                <!-- 动态生成 -->
+            </div>
+        </aside>
+        
+        <!-- 中间 - 编辑器 -->
+        <section class="editor-panel">
+            <div class="editor-toolbar">
+                <div class="editor-tabs">
+                    <button class="editor-tab active">main.py</button>
+                </div>
+                <div style="font-size: 12px; color: var(--text-secondary);">
+                    <span id="cursorPos">行 1, 列 1</span>
+                </div>
+            </div>
+            <div id="editor-container"></div>
+        </section>
+        
+        <!-- 右侧 - 配置和输出 -->
+        <aside class="right-panel">
+            <div class="panel-tabs">
+                <button class="panel-tab active" onclick="switchTab('config')">⚙️ 配置</button>
+                <button class="panel-tab" onclick="switchTab('output')">📤 输出</button>
+            </div>
+            
+            <div class="panel-content">
+                <!-- 配置 Tab -->
+                <div id="tab-config" class="tab-pane active">
+                    <div class="config-panel">
+                        <div class="config-group">
+                            <div class="config-label">
+                                <span>API URL</span>
+                                <span class="hint">兼容 OpenAI 格式</span>
+                            </div>
+                            <input type="text" class="config-input" id="apiUrl" 
+                                   placeholder="https://api.openai.com/v1/chat/completions"
+                                   value="">
+                        </div>
+                        
+                        <div class="config-group">
+                            <div class="config-label">API Key</div>
+                            <input type="password" class="config-input" id="apiKey" 
+                                   placeholder="sk-..."
+                                   value="">
+                        </div>
+                        
+                        <div class="config-group">
+                            <div class="config-label">模型名称</div>
+                            <input type="text" class="config-input" id="modelName" 
+                                   placeholder="gpt-4o-mini"
+                                   value="gpt-4o-mini">
+                        </div>
+                        
+                        <hr>
+                        
+                        <div class="config-group">
+                            <div class="config-label">
+                                <span>Temperature</span>
+                                <span class="slider-value" id="tempValue">0.7</span>
+                            </div>
+                            <div class="slider-container">
+                                <input type="range" id="temperature" min="0" max="2" step="0.1" value="0.7"
+                                       oninput="document.getElementById('tempValue').textContent = this.value">
+                            </div>
+                        </div>
+                        
+                        <div class="config-row">
+                            <div class="config-group">
+                                <div class="config-label">Max Tokens</div>
+                                <input type="number" class="config-input" id="maxTokens" 
+                                       value="1024" min="1" max="8192">
+                            </div>
+                            <div class="config-group">
+                                <div class="config-label">Top P</div>
+                                <input type="number" class="config-input" id="topP" 
+                                       value="1" min="0" max="1" step="0.1">
+                            </div>
+                        </div>
+                        
+                        <div class="config-group">
+                            <label class="checkbox-container">
+                                <input type="checkbox" id="streamMode" checked>
+                                <span>启用流式输出 (Streaming)</span>
+                            </label>
+                        </div>
+                        
+                        <hr>
+                        
+                        <div class="config-group">
+                            <div class="config-label">系统提示词 (System Prompt)</div>
+                            <textarea class="config-textarea" id="systemPrompt" 
+                                      placeholder="可选：设置 AI 的角色和行为..."></textarea>
+                        </div>
+                        
+                        <div style="margin-top: 20px; padding: 12px; background: rgba(88, 166, 255, 0.1); border-radius: 8px; border: 1px solid var(--accent-blue);">
+                            <div style="font-size: 12px; color: var(--accent-blue); margin-bottom: 8px;">💡 提示</div>
+                            <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.5;">
+                                配置会自动保存到浏览器。支持任何兼容 OpenAI API 格式的端点，包括本地部署的模型。
+                            </div>
+                        </div>
+                        
+                        <div style="margin-top: 12px; padding: 12px; background: rgba(63, 185, 80, 0.1); border-radius: 8px; border: 1px solid var(--accent-green);">
+                            <div style="font-size: 12px; color: var(--accent-green); margin-bottom: 8px;">🌐 本地服务器指南</div>
+                            <div style="font-size: 11px; color: var(--text-secondary); line-height: 1.4;">
+                                <strong>推荐使用本地 HTTP 服务器访问：</strong><br>
+                                1. 打开终端，进入文件所在目录<br>
+                                2. 运行: <code>python -m http.server</code><br>
+                                3. 在浏览器访问: <code>http://localhost:8000/llm-sdk-playground.html</code>
+                            </div>
+                        </div>
+                    </div>
+                
+                <!-- 输出 Tab -->
+                <div id="tab-output" class="tab-pane">
+                    <div class="output-panel">
+                        <div class="output-header">
+                            <span class="output-title">响应输出</span>
+                            <div class="output-actions">
+                                <button class="output-btn" onclick="clearOutput()">清空</button>
+                                <button class="output-btn" onclick="copyOutput()">复制</button>
+                            </div>
+                        </div>
+                        <div id="output">
+                            <div class="output-empty">点击"运行测试"查看输出结果</div>
+                        </div>
+                        <div class="request-info" id="requestInfo" style="display: none;">
+                            <!-- 动态显示请求信息 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="shortcuts">
+                <div class="shortcut-item"><span>运行代码</span><kbd>Ctrl</kbd> + <kbd>Enter</kbd></div>
+                <div class="shortcut-item"><span>清空输出</span><kbd>Ctrl</kbd> + <kbd>L</kbd></div>
+            </div>
+        </aside>
+    </main>
+
+    <!-- ========== Scripts ========== -->
+    <script>
+        // 保存原始的 define 函数，避免加载器冲突
+        const originalDefine = window.define;
+        const originalRequire = window.require;
+    </script>
+    
+    <!-- 加载 Pyodide -->
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
+    
+    <script>
+        // 恢复原始的 define 函数
+        window.define = originalDefine;
+        window.require = originalRequire;
+    </script>
+    
+    <!-- 加载 Monaco Editor -->
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
+    
+    <script>
+        // ==================== 全局变量 ====================
+        let editor = null;
+        let pyodide = null;
+        let isRunning = false;
+        let currentTemplate = 'basic-chat';
+        
+        // ==================== 代码模板 ====================
+        const templates = [
+            {
+                id: 'basic-chat',
+                icon: '💬',
+                title: '基础对话',
+                desc: '最简单的 LLM 调用，发送单轮消息并获取回复',
+                code: `# 基础对话示例
+from agent_sdk import LLM
+
+# 初始化 LLM 客户端
+llm = LLM()
+
+# 发送消息
+response = llm.chat("你好，请介绍一下你自己")
+
+# 打印回复
+print("=" * 50)
+print("🤖 AI 回复:")
+print("=" * 50)
+print(response)
+print("=" * 50)
+`
+            },
+            {
+                id: 'stream-chat',
+                icon: '🌊',
+                title: '流式输出',
+                desc: '实时流式获取 LLM 响应，逐字显示效果',
+                code: `# 流式输出示例
+from agent_sdk import LLM
+
+# 初始化 LLM 客户端
+llm = LLM()
+
+# 使用流式输出
+print("=" * 50)
+print("🤖 AI 回复 (流式):")
+print("=" * 50)
+
+# stream 方法会逐段返回内容
+for chunk in llm.stream("写一首关于人工智能的短诗"):
+    print(chunk, end="", flush=True)
+
+print()  # 最后换行
+print("=" * 50)
+`
+            },
+            {
+                id: 'system-prompt',
+                icon: '📋',
+                title: '系统提示词',
+                desc: '自定义 AI 角色和行为，设置系统级指令',
+                code: `# 系统提示词示例
+from agent_sdk import LLM
+
+# 创建一个专业翻译助手
+llm = LLM(
+    system_prompt="""你是一位专业的中英文翻译专家。
+规则：
+1. 中文翻译成英文，英文翻译成中文
+2. 保持原文的语气和风格
+3. 只输出翻译结果，不要解释"""
+)
+
+# 测试翻译
+texts = [
+    "人工智能正在改变我们的生活方式",
+    "The future of AI is bright and full of possibilities."
+]
+
+print("=" * 50)
+print("🔄 翻译测试:")
+print("=" * 50)
+
+for text in texts:
+    print(f"\\n原文: {text}")
+    translation = llm.chat(text)
+    print(f"译文: {translation}")
+
+print("=" * 50)
+`
+            }
+        ];
+        
+        // ==================== 初始化 ====================
+        async function init() {
+            renderTemplates();
+            initMonaco();
+            await initPyodide();
+            loadConfig();
+        }
+        
+        // 渲染模板列表
+        function renderTemplates() {
+            const container = document.getElementById('templateList');
+            container.innerHTML = templates.map((t, index) => `
+                <div class="template-item ${index === 0 ? 'active' : ''}" 
+                     onclick="loadTemplate('${t.id}')" data-id="${t.id}">
+                    <div class="icon">${t.icon}</div>
+                    <div class="title">${t.title}</div>
+                    <div class="desc">${t.desc}</div>
+                </div>
+            `).join('');
+        }
+        
+        // 加载模板
+        function loadTemplate(id) {
+            const template = templates.find(t => t.id === id);
+            if (template && editor) {
+                editor.setValue(template.code);
+                currentTemplate = id;
+                
+                // 更新选中状态
+                document.querySelectorAll('.template-item').forEach(el => {
+                    el.classList.toggle('active', el.dataset.id === id);
+                });
+            }
+        }
+        
+        // 初始化 Monaco Editor
+        function initMonaco() {
+            require.config({ 
+                paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs' } 
+            });
+            
+            require(['vs/editor/editor.main'], function() {
+                // 自定义主题
+                monaco.editor.defineTheme('agent-dark', {
+                    base: 'vs-dark',
+                    inherit: true,
+                    rules: [
+                        { token: 'comment', foreground: '6a9955' },
+                        { token: 'string', foreground: 'ce9178' },
+                        { token: 'keyword', foreground: 'c586c0' },
+                        { token: 'number', foreground: 'b5cea8' },
+                    ],
+                    colors: {
+                        'editor.background': '#0d1117',
+                        'editor.foreground': '#e6edf3',
+                        'editorLineNumber.foreground': '#6e7681',
+                        'editorCursor.foreground': '#58a6ff',
+                        'editor.selectionBackground': '#264f78',
+                    }
+                });
+                
+                editor = monaco.editor.create(document.getElementById('editor-container'), {
+                    value: templates[0].code,
+                    language: 'python',
+                    theme: 'agent-dark',
+                    fontSize: 14,
+                    fontFamily: "'SF Mono', Monaco, 'Courier New', monospace",
+                    minimap: { enabled: false },
+                    automaticLayout: true,
+                    scrollBeyondLastLine: false,
+                    lineNumbers: 'on',
+                    renderLineHighlight: 'line',
+                    tabSize: 4,
+                    insertSpaces: true,
+                    wordWrap: 'on',
+                    padding: { top: 16, bottom: 16 },
+                    suggest: {
+                        showKeywords: true,
+                        showSnippets: true,
+                    }
+                });
+                
+                // 快捷键
+                editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, runCode);
+                editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyL, clearOutput);
+                
+                // 光标位置
+                editor.onDidChangeCursorPosition((e) => {
+                    document.getElementById('cursorPos').textContent = 
+                        `行 ${e.position.lineNumber}, 列 ${e.position.column}`;
+                });
+                
+                // 注册自动补全
+                registerCompletions();
+            });
+        }
+        
+        // 注册自动补全
+        function registerCompletions() {
+            monaco.languages.registerCompletionItemProvider('python', {
+                provideCompletionItems: () => {
+                    const suggestions = [
+                        {
+                            label: 'from agent_sdk import',
+                            kind: monaco.languages.CompletionItemKind.Snippet,
+                            insertText: 'from agent_sdk import LLM',
+                            documentation: '导入 Agent SDK'
+                        },
+                        {
+                            label: 'LLM',
+                            kind: monaco.languages.CompletionItemKind.Class,
+                            insertText: 'LLM()',
+                            documentation: '创建 LLM 客户端'
+                        },
+                        {
+                            label: 'llm.chat',
+                            kind: monaco.languages.CompletionItemKind.Method,
+                            insertText: 'llm.chat("${1:message}")',
+                            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                            documentation: '发送消息获取回复'
+                        },
+                        {
+                            label: 'llm.stream',
+                            kind: monaco.languages.CompletionItemKind.Method,
+                            insertText: 'for chunk in llm.stream("${1:message}"):\n    print(chunk, end="")',
+                            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                            documentation: '流式获取回复'
+                        },
+                    ];
+                    return { suggestions };
+                }
+            });
+        }
+        
+        // 初始化 Pyodide
+        async function initPyodide() {
+            updateStatus('loading', '加载 Python 环境...');
+            
+            try {
+                pyodide = await loadPyodide({
+                    indexURL: "https://cdn.jsdelivr.net/pyodide/v0.24.1/full/"
+                });
+                
+                // 加载 Agent SDK
+                await pyodide.runPython(agentSDKCode);
+                
+                updateStatus('ready', '就绪');
+                document.getElementById('runBtn').disabled = false;
+                
+            } catch (err) {
+                updateStatus('error', '加载失败');
+                console.error('Pyodide 初始化失败:', err);
+            }
+        }
+        
+        // ==================== Agent SDK 模拟代码 ====================
+        const agentSDKCode = `
+# ========== Agent SDK for LLM Playground ==========
+import json
+import sys
+
+# 全局配置存储
+_config = {
+    "api_url": "",
+    "api_key": "",
+    "model": "gpt-4o-mini",
+    "temperature": 0.7,
+    "max_tokens": 1024,
+    "top_p": 1.0,
+    "stream": True,
+    "system_prompt": None
+}
+
+def configure(**kwargs):
+    """配置 SDK 参数"""
+    _config.update(kwargs)
+
+class LLM:
+    """大语言模型客户端 - Playground 版本"""
+    
+    def __init__(self, model=None, system_prompt=None):
+        self.model = model or _config.get("model", "gpt-4o-mini")
+        self.system_prompt = system_prompt or _config.get("system_prompt")
+        self.messages = []
+        
+        if self.system_prompt:
+            self.messages.append({"role": "system", "content": self.system_prompt})
+    
+    def chat(self, message):
+        """发送消息并获取回复"""
+        # 在实际环境中，这里会调用 JavaScript 进行真实的 HTTP 请求
+        # 在 Playground 中，我们返回一个标记，让 JavaScript 处理
+        self.messages.append({"role": "user", "content": message})
+        
+        # 输出标记供 JavaScript 捕获
+        request_data = {
+            "messages": self.messages,
+            "model": self.model,
+            "stream": False
+        }
+        print("__LLM_REQUEST__:" + json.dumps(request_data))
+        
+        # 返回占位符，实际响应由 JavaScript 注入
+        return "__WAITING_FOR_RESPONSE__"
+    
+    def stream(self, message):
+        """流式获取回复"""
+        self.messages.append({"role": "user", "content": message})
+        
+        # 输出标记供 JavaScript 捕获
+        request_data = {
+            "messages": self.messages,
+            "model": self.model,
+            "stream": True
+        }
+        print("__LLM_STREAM_REQUEST__:" + json.dumps(request_data))
+        
+        # 返回占位符
+        yield "__WAITING_FOR_STREAM__"
+
+# 注册模块
+from types import ModuleType
+agent_sdk = ModuleType('agent_sdk')
+agent_sdk.LLM = LLM
+agent_sdk.configure = configure
+sys.modules['agent_sdk'] = agent_sdk
+`;
+        
+        // ==================== 代码执行和 API 调用 ====================
+        async function runCode() {
+            if (!pyodide || !editor || isRunning) return;
+            
+            const code = editor.getValue();
+            const config = getConfig();
+            
+            // 验证配置
+            if (!config.apiUrl) {
+                showOutput('❌ 错误: 请先在配置面板中设置 API URL', 'error');
+                switchTab('config');
+                return;
+            }
+            
+            if (!config.apiKey) {
+                showOutput('❌ 错误: 请先在配置面板中设置 API Key', 'error');
+                switchTab('config');
+                return;
+            }
+            
+            isRunning = true;
+            document.getElementById('runBtn').disabled = true;
+            document.getElementById('runBtn').innerHTML = '⏳ 运行中...';
+            updateStatus('running', '运行中...');
+            
+            try {
+                // 清空输出并显示用户代码
+                clearOutput();
+                showOutput(`👤 用户代码:\n${code}\n`, 'user');
+                
+                // 重定向输出
+                await pyodide.runPython(`
+import sys
+from io import StringIO
+_stdout = StringIO()
+_stderr = StringIO()
+sys.stdout = _stdout
+sys.stderr = _stderr
+`);
+                
+                // 执行代码
+                await pyodide.runPythonAsync(code);
+                
+                // 获取输出
+                const stdout = pyodide.runPython('_stdout.getvalue()');
+                const stderr = pyodide.runPython('_stderr.getvalue()');
+                
+                if (stderr) {
+                    showOutput(`⚠️ 警告: ${stderr}`, 'warn');
+                }
+                
+                // 检查是否包含 LLM 请求标记
+                if (stdout.includes('__LLM_STREAM_REQUEST__')) {
+                    // 流式请求
+                    const match = stdout.match(/__LLM_STREAM_REQUEST__:({.+})/);
+                    if (match) {
+                        const requestData = JSON.parse(match[1]);
+                        await handleStreamRequest(requestData, config);
+                    }
+                } else if (stdout.includes('__LLM_REQUEST__')) {
+                    // 普通请求
+                    const match = stdout.match(/__LLM_REQUEST__:({.+})/);
+                    if (match) {
+                        const requestData = JSON.parse(match[1]);
+                        await handleNormalRequest(requestData, config);
+                    }
+                } else {
+                    // 普通 Python 输出
+                    showOutput(stdout, 'info');
+                }
+                
+                updateStatus('ready', '完成');
+                
+            } catch (err) {
+                showOutput(`❌ 执行错误:\n${err.message}`, 'error');
+                updateStatus('error', '出错');
+            } finally {
+                isRunning = false;
+                document.getElementById('runBtn').disabled = false;
+                document.getElementById('runBtn').innerHTML = '▶ 运行测试';
+            }
+        }
+        
+        // 处理普通请求
+        async function handleNormalRequest(requestData, config) {
+            showOutput('🌐 发送请求到 LLM API...', 'info');
+            
+            const requestBody = {
+                model: config.model,
+                messages: requestData.messages,
+                temperature: config.temperature,
+                max_tokens: config.maxTokens,
+                top_p: config.topP,
+                stream: false
+            };
+            
+            const startTime = Date.now();
+            
+            try {
+                const response = await fetch(config.apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${config.apiKey}`
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error?.message || `HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                const content = data.choices?.[0]?.message?.content || '无响应内容';
+                const elapsed = Date.now() - startTime;
+                
+                showOutput(`\n🤖 AI 回复 (${elapsed}ms):\n${content}`, 'assistant');
+                
+                // 显示请求信息
+                showRequestInfo({
+                    model: config.model,
+                    tokens: data.usage?.total_tokens || '未知',
+                    time: elapsed
+                });
+                
+            } catch (err) {
+                showOutput(`❌ 请求失败: ${err.message}`, 'error');
+            }
+        }
+        
+        // 处理流式请求
+        async function handleStreamRequest(requestData, config) {
+            showOutput('🌐 发送流式请求到 LLM API...', 'info');
+            showOutput('\n🤖 AI 回复 (流式):\n', 'assistant');
+            
+            const requestBody = {
+                model: config.model,
+                messages: requestData.messages,
+                temperature: config.temperature,
+                max_tokens: config.maxTokens,
+                top_p: config.topP,
+                stream: true
+            };
+            
+            const startTime = Date.now();
+            let fullContent = '';
+            
+            try {
+                const response = await fetch(config.apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${config.apiKey}`
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error?.message || `HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                // 创建流式输出容器
+                const outputDiv = document.getElementById('output');
+                const streamContainer = document.createElement('div');
+                streamContainer.className = 'output-assistant';
+                streamContainer.innerHTML = '<span class="streaming-content"></span><span class="streaming-cursor"></span>';
+                outputDiv.appendChild(streamContainer);
+                
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    const chunk = decoder.decode(value, { stream: true });
+                    const lines = chunk.split('\n');
+                    
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const data = line.slice(6);
+                            if (data === '[DONE]') continue;
+                            
+                            try {
+                                const parsed = JSON.parse(data);
+                                const content = parsed.choices?.[0]?.delta?.content || '';
+                                if (content) {
+                                    fullContent += content;
+                                    const contentSpan = streamContainer.querySelector('.streaming-content');
+                                    contentSpan.textContent = fullContent;
+                                    outputDiv.scrollTop = outputDiv.scrollHeight;
+                                }
+                            } catch (e) {
+                                // 忽略解析错误
+                            }
+                        }
+                    }
+                }
+                
+                // 移除光标
+                const cursor = streamContainer.querySelector('.streaming-cursor');
+                if (cursor) cursor.remove();
+                
+                const elapsed = Date.now() - startTime;
+                showRequestInfo({
+                    model: config.model,
+                    tokens: '流式输出（Token 数未知）',
+                    time: elapsed
+                });
+                
+            } catch (err) {
+                showOutput(`❌ 流式请求失败: ${err.message}`, 'error');
+            }
+        }
+        
+        // ==================== 配置管理 ====================
+        function getConfig() {
+            return {
+                apiUrl: document.getElementById('apiUrl').value.trim(),
+                apiKey: document.getElementById('apiKey').value.trim(),
+                model: document.getElementById('modelName').value.trim() || 'gpt-4o-mini',
+                temperature: parseFloat(document.getElementById('temperature').value),
+                maxTokens: parseInt(document.getElementById('maxTokens').value),
+                topP: parseFloat(document.getElementById('topP').value),
+                stream: document.getElementById('streamMode').checked,
+                systemPrompt: document.getElementById('systemPrompt').value.trim()
+            };
+        }
+        
+        function saveConfig() {
+            const config = getConfig();
+            localStorage.setItem('llm_playground_config', JSON.stringify(config));
+        }
+        
+        function loadConfig() {
+            // 1. 先尝试从 URL 获取
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlToken = urlParams.get('token');
+            const saved = localStorage.getItem('llm_playground_config');
+            let config = {};
+            if (saved) {
+                try {
+                    config = JSON.parse(saved);
+                } catch (e) {
+                    console.error('加载配置失败:', e);
+                }
+            }
+            
+            // 2. 如果 URL 有参数，覆盖配置
+            if (urlToken) config.apiKey = urlToken;
+
+            // 3. 填充 UI
+            // document.getElementById('apiUrl').value = config.apiUrl || '';
+            // document.getElementById('apiKey').value = config.apiKey || '';
+            // document.getElementById('modelName').value = config.model || 'gpt-4o-mini';
+            // document.getElementById('temperature').value = config.temperature || 0.7;
+            // document.getElementById('tempValue').textContent = config.temperature || 0.7;
+            // document.getElementById('maxTokens').value = config.maxTokens || 1024;
+            // document.getElementById('topP').value = config.topP || 1;
+            // document.getElementById('streamMode').checked = config.stream !== false;
+            // document.getElementById('systemPrompt').value = config.systemPrompt || '';
+            
+            // 4. 如果 URL 有参数，保存更新后的配置
+            if (urlToken) {
+                // 这里不能直接调用 saveConfig，因为 saveConfig 是从 DOM 读取的，
+                // 虽然上面已经填充了 DOM，但为了保险起见，我们手动更新 localStorage
+                // 或者等待 DOM 更新后再保存。
+                // 其实上面已经填充了 DOM，直接调用 saveConfig 是安全的。
+                // 但为了避免副作用，我们直接更新 localStorage 对象
+                localStorage.setItem('llm_playground_config', JSON.stringify(config));
+            }
+        }
+        
+        // 监听配置变化自动保存
+        document.querySelectorAll('.config-input, .config-textarea').forEach(input => {
+            input.addEventListener('change', saveConfig);
+        });
+        
+        // ==================== UI 函数 ====================
+        function updateStatus(type, text) {
+            const dot = document.getElementById('statusDot');
+            const textEl = document.getElementById('statusText');
+            dot.className = 'status-dot ' + type;
+            textEl.textContent = text;
+        }
+        
+        function switchTab(tabName) {
+            document.querySelectorAll('.panel-tab').forEach(tab => {
+                tab.classList.remove('active');
+                if (tab.getAttribute('onclick').includes(tabName)) {
+                    tab.classList.add('active');
+                }
+            });
+            
+            document.querySelectorAll('.tab-pane').forEach(pane => {
+                pane.classList.remove('active');
+            });
+            document.getElementById('tab-' + tabName).classList.add('active');
+        }
+        
+        function showOutput(content, type = '') {
+            const output = document.getElementById('output');
+            
+            // 如果是第一次输出，清空"等待"提示
+            if (output.querySelector('.output-empty')) {
+                output.innerHTML = '';
+            }
+            
+            const div = document.createElement('div');
+            div.className = 'output-line';
+            
+            if (type === 'user') {
+                div.innerHTML = `<span class="output-user">${escapeHtml(content)}</span>`;
+            } else if (type === 'assistant') {
+                div.innerHTML = `<div class="output-assistant">${escapeHtml(content)}</div>`;
+            } else if (type === 'error') {
+                div.innerHTML = `<div class="output-error">${escapeHtml(content)}</div>`;
+            } else if (type === 'warn') {
+                div.innerHTML = `<span class="output-info">${escapeHtml(content)}</span>`;
+            } else {
+                div.textContent = content;
+            }
+            
+            output.appendChild(div);
+            output.scrollTop = output.scrollHeight;
+        }
+        
+        function showRequestInfo(info) {
+            const infoDiv = document.getElementById('requestInfo');
+            infoDiv.style.display = 'block';
+            infoDiv.innerHTML = `
+                <div class="request-info-item">
+                    <span>模型</span>
+                    <span>${info.model}</span>
+                </div>
+                <div class="request-info-item">
+                    <span>Token 数</span>
+                    <span>${info.tokens}</span>
+                </div>
+                <div class="request-info-item">
+                    <span>响应时间</span>
+                    <span>${info.time}ms</span>
+                </div>
+            `;
+        }
+        
+        function clearOutput() {
+            document.getElementById('output').innerHTML = '<div class="output-empty">点击"运行测试"查看输出结果</div>';
+            document.getElementById('requestInfo').style.display = 'none';
+        }
+        
+        function copyOutput() {
+            const output = document.getElementById('output');
+            const text = output.innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                alert('已复制到剪贴板');
+            });
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // ==================== 启动 ====================
+        init();
+    </script>
+</body>
+</html>
